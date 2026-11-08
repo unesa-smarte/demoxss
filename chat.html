@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeri Kucing Lucu - Demo Stored XSS Global</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        .img-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .img-container img {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .reset-btn {
+            background-color: #f44336;
+            margin-top: 10px;
+        }
+        .reset-btn:hover {
+            background-color: #da190b;
+        }
+        .comments-section {
+            margin-top: 25px;
+            border-top: 2px solid #eee;
+            padding-top: 15px;
+        }
+        .comment-box {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .comment-author {
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+    <h2>Foto Kucing Lucu Hari Ini 🐱</h2>
+    
+    <div class="img-container">
+        <img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=500" alt="Kucing Lucu">
+    </div>
+
+    <!-- Form Komentar -->
+    <form id="commentForm">
+        <div class="form-group">
+            <label for="nama">Nama:</label>
+            <input type="text" id="nama" placeholder="Masukkan nama Anda" required>
+        </div>
+        <div class="form-group">
+            <label for="komentar">Komentar:</label>
+            <textarea id="komentar" rows="3" placeholder="Tulis komentar lucu..." required></textarea>
+        </div>
+        <button type="submit" id="submitBtn">Kirim Komentar</button>
+    </form>
+
+    <button class="reset-btn" onclick="resetComments()">Reset Data Cloud (Hapus XSS)</button>
+
+    <!-- Tempat Komentar Ditampilkan -->
+    <div class="comments-section">
+        <h3>Daftar Komentar:</h3>
+        <div id="commentList">Memuat komentar dari server...</div>
+    </div>
+</div>
+
+<script>
+    // --- KONFIGURASI JSONBIN.IO ---
+    const BIN_ID = '6aefda83ffd5d16053b026e0'; 
+    const API_KEY = '$2a$10$xCYX3PQkYsqi5v.taA5o4ukDkX7dyaWKvS/Ja8ei6Ug6SzlDFTSLi';
+    // -----------------------------
+
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    // 1. Ambil data komentar dari JSONBin
+    async function fetchComments() {
+        try {
+            const response = await fetch(API_URL, {
+                headers: {
+                    'X-Master-Key': API_KEY
+                }
+            });
+            const data = await response.json();
+            const comments = data.record.comments || [];
+            renderComments(comments);
+        } catch (error) {
+            document.getElementById('commentList').innerHTML = 'Gagal memuat komentar dari server.';
+        }
+    }
+
+    // 2. Render komentar ke halaman (LETAK KERENTANAN STORED XSS)
+    function renderComments(comments) {
+        const commentListDiv = document.getElementById('commentList');
+        commentListDiv.innerHTML = '';
+
+        if (comments.length === 0) {
+            commentListDiv.innerHTML = '<p style="color: #777;">Belum ada komentar.</p>';
+            return;
+        }
+
+        comments.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'comment-box';
+            
+            /* 
+               CELAH KEAMANAN (VULNERABILITY):
+               Menggunakan innerHTML langsung untuk merender data dari database cloud.
+               Jika ada payload <script> atau <img> yang tersimpan, browser akan mengeksekusinya.
+            */
+            div.innerHTML = `<span class="comment-author">${item.nama}:</span> <div>${item.komentar}</div>`;
+            
+            commentListDiv.appendChild(div);
+        });
+    }
+
+    // 3. Kirim komentar baru ke JSONBin
+    document.getElementById('commentForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const nama = document.getElementById('nama').value;
+        const komentar = document.getElementById('komentar').value;
+
+        document.getElementById('submitBtn').innerText = 'Mengirim...';
+
+        try {
+            // Ambil data eksisting dulu
+            const getRes = await fetch(API_URL, {
+                headers: { 'X-Master-Key': API_KEY }
+            });
+            const getData = await getRes.json();
+            let comments = getData.record.comments || [];
+
+            // Tambah komentar baru
+            comments.push({ nama, komentar });
+
+            // Simpan kembali ke JSONBin
+            await fetch(API_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY
+                },
+                body: JSON.stringify({ comments: comments })
+            });
+
+            document.getElementById('nama').value = '';
+            document.getElementById('komentar').value = '';
+            
+            // Refresh daftar komentar
+            fetchComments();
+        } catch (error) {
+            alert('Gagal mengirim komentar.');
+        } finally {
+            document.getElementById('submitBtn').innerText = 'Kirim Komentar';
+        }
+    });
+
+    // 4. Fungsi untuk mereset data di cloud kembali bersih
+    async function resetComments() {
+        if (!confirm('Yakin ingin mereset semua komentar di server?')) return;
+        try {
+            await fetch(API_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY
+                },
+                body: JSON.stringify({ comments: [] })
+            });
+            alert('Data berhasil direset!');
+            location.reload();
+        } catch (error) {
+            alert('Gagal mereset data.');
+        }
+    }
+
+    // Load komentar saat halaman dibuka
+    fetchComments();
+</script>
+
+</body>
+</html>
