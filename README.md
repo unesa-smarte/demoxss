@@ -7,7 +7,7 @@ Untuk Mahasiswa PTI UNESA 2026
 
 # Akses web browser
 
-1. versi local stored di : [https://unesa-smarte.github.io/demoxss/chat.html](https://unesa-smarte.github.io/demoxss/chat.html)
+1. versi local stored di : [https://unesa-smarte.github.io/demoxss](https://unesa-smarte.github.io/demoxss)
 2. Versi data chat diluar / jsonbin.io  : [https://unesa-smarte.github.io/demoxss/chat.html](https://unesa-smarte.github.io/demoxss/chat.html)
 
 # Inject komentarnya seperti ini
