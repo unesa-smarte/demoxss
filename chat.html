@@ -104,7 +104,7 @@
         <button type="submit" id="submitBtn">Kirim Komentar</button>
     </form>
 
-    <button class="reset-btn" onclick="resetComments()">Reset Data Cloud (Hapus XSS)</button>
+    <button class="reset-btn" onclick="resetComments()">Reset Data Cloud (Bersihkan XSS)</button>
 
     <!-- Tempat Komentar Ditampilkan -->
     <div class="comments-section">
@@ -120,6 +120,25 @@
     // -----------------------------
 
     const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+    // Buat fungsi reset global agar bisa dipanggil juga dari dalam payload XSS
+    window.resetComments = async function() {
+        if (!confirm('Yakin ingin mereset dan membersihkan semua komentar di cloud?')) return;
+        try {
+            await fetch(API_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY
+                },
+                body: JSON.stringify({ comments: [] })
+            });
+            alert('Server berhasil dibersihkan! Halaman akan dimuat ulang.');
+            location.reload();
+        } catch (error) {
+            alert('Gagal mereset data server.');
+        }
+    }
 
     // 1. Ambil data komentar dari JSONBin
     async function fetchComments() {
@@ -154,7 +173,6 @@
             /* 
                CELAH KEAMANAN (VULNERABILITY):
                Menggunakan innerHTML langsung untuk merender data dari database cloud.
-               Jika ada payload <script> atau <img> yang tersimpan, browser akan mengeksekusinya.
             */
             div.innerHTML = `<span class="comment-author">${item.nama}:</span> <div>${item.komentar}</div>`;
             
@@ -171,17 +189,14 @@
         document.getElementById('submitBtn').innerText = 'Mengirim...';
 
         try {
-            // Ambil data eksisting dulu
             const getRes = await fetch(API_URL, {
                 headers: { 'X-Master-Key': API_KEY }
             });
             const getData = await getRes.json();
             let comments = getData.record.comments || [];
 
-            // Tambah komentar baru
             comments.push({ nama, komentar });
 
-            // Simpan kembali ke JSONBin
             await fetch(API_URL, {
                 method: 'PUT',
                 headers: {
@@ -194,7 +209,6 @@
             document.getElementById('nama').value = '';
             document.getElementById('komentar').value = '';
             
-            // Refresh daftar komentar
             fetchComments();
         } catch (error) {
             alert('Gagal mengirim komentar.');
@@ -202,25 +216,6 @@
             document.getElementById('submitBtn').innerText = 'Kirim Komentar';
         }
     });
-
-    // 4. Fungsi untuk mereset data di cloud kembali bersih
-    async function resetComments() {
-        if (!confirm('Yakin ingin mereset semua komentar di server?')) return;
-        try {
-            await fetch(API_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': API_KEY
-                },
-                body: JSON.stringify({ comments: [] })
-            });
-            alert('Data berhasil direset!');
-            location.reload();
-        } catch (error) {
-            alert('Gagal mereset data.');
-        }
-    }
 
     // Load komentar saat halaman dibuka
     fetchComments();
